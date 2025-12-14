@@ -1,0 +1,22 @@
+# --- Global ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Node.js (Frontend, api-gateway, core-services) ---
+node_modules/
+dist/
+build/
+.env
+npm-debug.log
+yarn-error.log
+
+# --- Java (finance-service) ---
+target/
+.mvn/
+mvnw
+mvnw.cmd
+*.class
+*.log
+*.jar
