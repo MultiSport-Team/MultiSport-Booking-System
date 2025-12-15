@@ -1,12 +1,12 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
 
 // Import Routes
-const userRoutes = require('./src/routes/userRoutes');
-const bookingRoutes = require('./src/routes/bookingRoutes');
-const venuRoutes = require('./src/routes/venuRoutes');
+const userRoutes = require("./src/routes/userRoutes");
+// const bookingRoutes = require('./src/routes/bookingRoutes');
+const venueRoutes = require("./src/routes/venueRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,16 +17,16 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
-app.use('/user', userRoutes);
-app.use('/booking', bookingRoutes);
-app.use('/venu', venuRoutes);
+app.use("/user", userRoutes);
+// app.use('/booking', bookingRoutes);
+app.use("/venue", venueRoutes);
 
 // Base Route
-app.get('/', (req, res) => {
-    res.send('API is running...');
+app.get("/", (req, res) => {
+  res.send("API is running...");
 });
 
 // Start Server
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });

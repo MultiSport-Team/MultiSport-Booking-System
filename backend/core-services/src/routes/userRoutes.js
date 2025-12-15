@@ -1,94 +1,107 @@
 const express = require('express');
-const router = express.Router();
 const bcrypt = require('bcrypt');
-const db = require('../utils/db');
-const { createResult } = require('../utils/result');
-const { generateToken, verifyToken } = require('../utils/authUser');
+const jwt = require('jsonwebtoken');
+const pool = require('../utils/db');
+const result = require('../utils/result');
 const config = require('../utils/config');
+const { verifyToken } = require('../utils/authUser');
 
-// 1. REGISTER
-router.post('/register', async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
+const router = express.Router();
+const SaltRounds = 10;
 
-        // Check if user exists
-        const [existing] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
-        if (existing.length > 0) {
-            return res.status(400).json(createResult('Email already in use', null));
-        }
+// REGISTER
+router.post('/register', (req, res) => {
+    console.log("Register Body:", req.body);
+    const { first_name, last_name, email, phone, password, role } = req.body;
 
-        const hashedPassword = await bcrypt.hash(password, config.saltRounds);
+    if (!password || !email || !first_name) {
+        return res.status(400).send(result.createResult("Missing required fields: first_name, email, and password"));
+    }
+    const userRole = role || 'USER'; 
+
+    bcrypt.hash(password, SaltRounds, (err, hash) => {
+        if (err) return res.status(500).send(result.createResult(err.message));
+
+        const sql = 'INSERT INTO users (first_name, last_name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)';
         
-        const [result] = await db.execute(
-            'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-            [username, email, hashedPassword]
-        );
-
-        res.status(201).json(createResult(null, { message: 'User registered', id: result.insertId }));
-    } catch (error) {
-        res.status(500).json(createResult(error.message, null));
-    }
+        pool.query(sql, [first_name, last_name, email, phone, hash, userRole], (err, data) => {
+            if (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).send(result.createResult("Email or Phone already exists"));
+                }
+                return res.status(500).send(result.createResult(err.message));
+            }
+            res.status(201).send(result.createResult(null, { message: 'User registered', id: data.insertId }));
+        });
+    });
 });
 
-// 2. LOGIN
-router.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+// LOGIN
+router.post('/login', (req, res) => {
+    const { email, password } = req.body;
+    const sql = 'SELECT * FROM users WHERE email = ?';
+
+    pool.query(sql, [email], (err, data) => {
+        if (err) return res.status(500).send(result.createResult(err.message));
+        if (data.length === 0) return res.status(404).send(result.createResult("User not found"));
+
+        const user = data[0];
+
+        bcrypt.compare(password, user.password_hash, (err, isMatch) => {
+            if (err) return res.status(500).send(result.createResult(err.message));
+            
+            if (isMatch) {
+                const payload = { id: user.id, email: user.email, role: user.role };
+                const token = jwt.sign(payload, config.secret, { expiresIn: '24h' });
+                
+                const userResponse = {
+                    id: user.id,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    email: user.email,
+                    role: user.role,
+                    token
+                };
+                res.send(result.createResult(null, userResponse));
+            } else {
+                res.status(401).send(result.createResult("Invalid credentials"));
+            }
+        });
+    });
+});
+
+// GET PROFILE
+router.get('/profile', verifyToken, (req, res) => {
+    const sql = 'SELECT id, first_name, last_name, email, phone, role, created_at FROM users WHERE id = ?';
+    pool.query(sql, [req.user.id], (err, data) => {
+        if (err) return res.status(500).send(result.createResult(err.message));
+        if (data.length === 0) return res.status(404).send(result.createResult("User not found"));
         
-        if (users.length === 0) return res.status(404).json(createResult('User not found', null));
-
-        const user = users[0];
-        const match = await bcrypt.compare(password, user.password);
-
-        if (match) {
-            const token = generateToken({ id: user.id, email: user.email });
-            // Don't send password back
-            const { password, ...userWithoutPassword } = user; 
-            res.json(createResult(null, { token, user: userWithoutPassword }));
-        } else {
-            res.status(401).json(createResult('Invalid credentials', null));
-        }
-    } catch (error) {
-        res.status(500).json(createResult(error.message, null));
-    }
+        res.send(result.createResult(null, data[0]));
+    });
 });
 
-// 3. GET PROFILE (Protected)
-router.get('/profile', verifyToken, async (req, res) => {
-    try {
-        const [users] = await db.execute(
-            'SELECT id, username, email, created_at FROM users WHERE id = ?', 
-            [req.user.id]
-        );
-        res.json(createResult(null, users[0]));
-    } catch (error) {
-        res.status(500).json(createResult(error.message, null));
-    }
+
+
+// GET ALL USERS (Admin usage)
+router.get('/', verifyToken, (req, res) => {
+    const sql = 'SELECT id, first_name, last_name, email, role, is_active FROM users';
+    pool.query(sql, (err, data) => {
+        if (err) return res.status(500).send(result.createResult(err.message));
+        res.send(result.createResult(null, data));
+    });
 });
 
-// 4. UPDATE PROFILE (Protected)
-router.put('/profile', verifyToken, async (req, res) => {
-    try {
-        const { username, email } = req.body;
-        await db.execute(
-            'UPDATE users SET username = ?, email = ? WHERE id = ?',
-            [username, email, req.user.id]
-        );
-        res.json(createResult(null, { message: 'Profile updated successfully' }));
-    } catch (error) {
-        res.status(500).json(createResult(error.message, null));
-    }
-});
-
-// 5. GET ALL USERS (For Admin - Optional)
-router.get('/', verifyToken, async (req, res) => {
-    try {
-        const [users] = await db.execute('SELECT id, username, email FROM users');
-        res.json(createResult(null, users));
-    } catch (error) {
-        res.status(500).json(createResult(error.message, null));
-    }
+// UPDATE PROFILE
+router.put('/profile', verifyToken, (req, res) => {
+    const { first_name, last_name, phone } = req.body;
+    
+    const sql = 'UPDATE users SET first_name = ?, last_name = ?, phone = ? WHERE id = ?';
+    
+    pool.query(sql, [first_name, last_name, phone, req.user.id], (err, data) => {
+        if (err) return res.status(500).send(result.createResult(err.message));
+        res.send(result.createResult(null, { message: 'Profile updated successfully' }));
+    });
 });
 
 module.exports = router;

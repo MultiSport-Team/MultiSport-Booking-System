@@ -11,7 +11,6 @@ const verifyToken = (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-        // Updated to use new createResult signature
         return res.status(401).json(createResult('Access denied. No token provided.', null));
     }
 
@@ -20,7 +19,6 @@ const verifyToken = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (err) {
-        // Updated to use new createResult signature
         return res.status(403).json(createResult('Invalid token.', null));
     }
 };
