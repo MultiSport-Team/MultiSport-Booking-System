@@ -261,38 +261,89 @@ SALT_ROUNDS=10
 VITE_API_URL=http://localhost:3000
 ```
 
-## Build & Deployment
+## Deployment on AWS EC2
 
-### Web App Production Build
+### Backend Deployment
+
+1. Launch an EC2 instance (Ubuntu 20.04 or later)
+
+2. Connect and install dependencies:
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install nodejs npm mysql-server -y
+```
+
+3. Clone repository:
+```bash
+git clone <your-repo-url>
+cd MultiSport-Booking-System/backend/core-services
+```
+
+4. Install and configure:
+```bash
+npm install
+cp .env.example .env
+# Edit .env with production database and JWT settings
+```
+
+5. Start with PM2:
+```bash
+npm install -g pm2
+pm2 start server.js --name "multisport-api"
+pm2 startup
+pm2 save
+```
+
+Backend runs on your EC2 instance IP on port 3000
+
+### Web App Deployment
+
+1. Build the application:
 ```bash
 cd "Multisport Web Application"
+npm install
 npm run build
 ```
 
-Deploy the `dist/` folder to:
-- Vercel
-- Netlify
-- AWS S3 + CloudFront
-- Any static hosting
+2. Deploy built files to EC2 or S3:
+```bash
+# Option A: On same EC2 instance
+scp -r dist/* ec2-user@your-instance-ip:/var/www/multisport/
 
-### Backend Deployment
-Deploy to:
-- AWS EC2
-- Heroku
-- DigitalOcean
-- Any Node.js hosting
+# Option B: Use nginx to serve
+sudo apt install nginx -y
+# Copy dist contents to /var/www/multisport/html/
+```
 
-Update database connection and JWT secret in production `.env`
+3. Configure nginx:
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        root /var/www/multisport/html;
+        try_files $uri /index.html;
+    }
+    
+    location /api {
+        proxy_pass http://localhost:3000;
+    }
+}
+```
 
 ### Mobile App
-Build for stores:
+
+Build for app stores:
 ```bash
 # Android APK
 npm run android -- --release
 
-# iOS IPA
+# iOS IPA  
 npm run ios -- --release
 ```
+
+Upload to Google Play Store and Apple App Store
 
 ## Key Features Implemented
 
@@ -339,5 +390,3 @@ MIT License - Feel free to use this project
 Need help? Check the docs or open an issue in the repository.
 
 ---
-
-**Built with ❤️**
