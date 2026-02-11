@@ -1,0 +1,284 @@
+.payment-page {
+  background: #f8f9fa;
+  min-height: calc(100vh - 56px);
+  padding: 20px 0;
+}
+
+.booking-summary {
+  padding: 10px 0;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.summary-row.total {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #007bff;
+  border-bottom: none;
+  padding-top: 15px;
+}
+
+.summary-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.summary-value {
+  color: #1a1a1a;
+  text-align: right;
+}
+
+/* Payment Methods */
+.payment-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.payment-method-option {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.payment-method-option input[type="radio"] {
+  margin-top: 12px;
+  margin-right: 12px;
+  cursor: pointer;
+}
+
+.payment-method-label {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
+}
+
+.payment-method-option input[type="radio"]:checked + .payment-method-label {
+  border-color: #007bff;
+  background-color: #f0f7ff;
+}
+
+.payment-icon {
+  font-size: 2rem;
+  margin-right: 15px;
+}
+
+.payment-method-details {
+  flex: 1;
+}
+
+.payment-method-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+}
+
+.payment-method-description {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+/* Coupon Code */
+.coupon-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.coupon-input {
+  flex: 1;
+  border-radius: 6px;
+}
+
+.coupon-btn {
+  min-width: 100px;
+  border-radius: 6px;
+}
+
+.coupon-applied-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background-color: #f0f9ff;
+  border: 2px solid #0d6efd;
+  border-radius: 6px;
+}
+
+.coupon-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.coupon-status {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.coupon-code {
+  background-color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #007bff;
+}
+
+/* Price Breakdown */
+.price-breakdown {
+  background-color: #f8f9fa;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: 1rem;
+}
+
+.breakdown-row.discount {
+  color: #28a745;
+}
+
+.discount-amount {
+  color: #28a745 !important;
+}
+
+.breakdown-row.final-amount {
+  font-size: 1.2rem;
+  color: #007bff;
+  padding-top: 15px;
+}
+
+.amount {
+  text-align: right;
+  min-width: 80px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .coupon-input-group {
+    flex-direction: column;
+  }
+
+  .coupon-btn {
+    width: 100%;
+  }
+
+  .coupon-applied-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .payment-icon {
+    font-size: 1.5rem;
+    margin-right: 10px;
+  }
+
+  .summary-row {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .summary-value {
+    text-align: left;
+  }
+}
+
+/* Invoice Preview Card */
+.invoice-preview-card {
+  border-left: 4px solid #0dcaf0;
+}
+
+.invoice-preview-card .card-header {
+  background: linear-gradient(135deg, #0dcaf0, #0d99ff) !important;
+}
+
+.invoice-preview-card .btn-outline-info {
+  border-color: #0dcaf0;
+  color: #0dcaf0;
+  transition: all 0.3s ease;
+}
+
+.invoice-preview-card .btn-outline-info:hover {
+  background-color: #0dcaf0;
+  border-color: #0dcaf0;
+  color: white;
+}
+
+.invoice-preview-card .btn-info {
+  background-color: #0dcaf0;
+  border-color: #0dcaf0;
+  transition: all 0.3s ease;
+}
+
+.invoice-preview-card .btn-info:hover {
+  background-color: #0d99ff;
+  border-color: #0d99ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 202, 240, 0.3);
+}
+
+/* Invoice Display */
+.invoice-display {
+  margin-top: 20px;
+  background-color: white;
+  border-left: 4px solid #667eea;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.invoice-display .card-body {
+  padding: 20px;
+}
+
+.invoice-display table {
+  margin-bottom: 15px !important;
+}
+
+.invoice-display tr {
+  background-color: #ffffff !important;
+}
+
+.invoice-display thead tr {
+  background-color: #667eea !important;
+}
+
+.invoice-display thead tr th {
+  color: white !important;
+  border: 1px solid #667eea !important;
+}
+
+.invoice-display tbody tr td {
+  border: 1px solid #ddd !important;
+}
+
+/* Scrollbar styling for invoice preview */
+.invoice-display::-webkit-scrollbar {
+  width: 8px;
+}
+
+.invoice-display::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.invoice-display::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+.invoice-display::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
+}

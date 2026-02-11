@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 
 // Import Routes
 const userRoutes = require("./src/routes/userRoutes");
-// const bookingRoutes = require('./src/routes/bookingRoutes');
+const bookingRoutes = require('./src/routes/bookingRoutes');
 const venueRoutes = require("./src/routes/venueRoutes");
 
 const app = express();
@@ -18,7 +18,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
 app.use("/user", userRoutes);
-// app.use('/booking', bookingRoutes);
+app.use('/booking', bookingRoutes);
 app.use("/venue", venueRoutes);
 
 // Base Route

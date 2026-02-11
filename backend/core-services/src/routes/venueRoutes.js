@@ -1,88 +1,42 @@
-// const express = require('express');
-// const pool = require('../utils/db');
-// const result = require('../utils/result');
-// const { verifyToken } = require('../utils/authUser');
 
-// const router = express.Router();
-
-// // 1. GET ALL VENUES
-// router.get('/', (req, res) => {
-//     const sql = 'SELECT * FROM venues';
-//     pool.query(sql, (err, data) => {
-//         if (err) return res.status(500).send(result.createResult(err.message));
-//         res.send(result.createResult(null, data));
-//     });
-// });
-
-// // 2. GET SINGLE VENUE
-// router.get('/:id', (req, res) => {
-//     const sql = 'SELECT * FROM venues WHERE id = ?';
-//     pool.query(sql, [req.params.id], (err, data) => {
-//         if (err) return res.status(500).send(result.createResult(err.message));
-//         if (data.length === 0) return res.status(404).send(result.createResult("Venue not found"));
-//         res.send(result.createResult(null, data[0]));
-//     });
-// });
-
-// // 3. ADD VENUE 
-// router.post('/', verifyToken, (req, res) => {
-//     const { sport_category_id, name, city, address, description, price_per_hour, amenities } = req.body;
-    
-//     const vendor_user_id = req.user.id; 
-
-//     const amenitiesJson = JSON.stringify(amenities || {});
-
-//     const sql = `INSERT INTO venues 
-//         (vendor_user_id, sport_category_id, name, city, address, description, price_per_hour, amenities, approval_status) 
-//         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`;
-    
-//     pool.query(sql, 
-//         [vendor_user_id, sport_category_id, name, city, address, description, price_per_hour, amenitiesJson], 
-//         (err, data) => {
-//             if (err) return res.status(500).send(result.createResult(err.message));
-//             res.status(201).send(result.createResult(null, { message: 'Venue created', id: data.insertId }));
-//         }
-//     );
-// });
-
-// // 4. UPDATE VENUE (Protected)
-// router.put('/:id', verifyToken, (req, res) => {
-//     const { name, city, address, description, price_per_hour, amenities } = req.body;
-//     const amenitiesJson = JSON.stringify(amenities || {});
-
-//     const sql = `UPDATE venues 
-//                  SET name = ?, city = ?, address = ?, description = ?, price_per_hour = ?, amenities = ? 
-//                  WHERE id = ? AND vendor_user_id = ?`;
-
-//     pool.query(sql, 
-//         [name, city, address, description, price_per_hour, amenitiesJson, req.params.id, req.user.id], 
-//         (err, data) => {
-//             if (err) return res.status(500).send(result.createResult(err.message));
-//             if (data.affectedRows === 0) return res.status(403).send(result.createResult("Venue not found or unauthorized"));
-            
-//             res.send(result.createResult(null, { message: 'Venue updated successfully' }));
-//         }
-//     );
-// });
-
-// // 5. DELETE VENUE (Protected)
-// router.delete('/:id', verifyToken, (req, res) => {
-//     const sql = 'DELETE FROM venues WHERE id = ? AND vendor_user_id = ?';
-//     pool.query(sql, [req.params.id, req.user.id], (err, data) => {
-//         if (err) return res.status(500).send(result.createResult(err.message));
-//         if (data.affectedRows === 0) return res.status(403).send(result.createResult("Not authorized or venue not found"));
-//         res.send(result.createResult(null, { message: 'Venue deleted' }));
-//     });
-// });
-
-// module.exports = router;
 
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const pool = require('../utils/db');
 const result = require('../utils/result');
 const { verifyToken } = require('../utils/authUser');
 
 const router = express.Router();
+
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/venues';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'venue-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPG, PNG, and WebP allowed.'));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 //  PUBLIC ROUTES
 
@@ -90,14 +44,16 @@ const router = express.Router();
 router.get('/', (req, res) => {
     const { city, sport_category_id, min_price, max_price, search } = req.query;
     
-    let sql = `
-        SELECT v.*, sc.name as sport_name, 
-               u.first_name as vendor_name, u.phone as vendor_phone
-        FROM venues v
-        JOIN sports_categories sc ON v.sport_category_id = sc.id
-        JOIN users u ON v.vendor_user_id = u.id
-        WHERE v.approval_status = 'APPROVED'
-    `;
+let sql = `
+    SELECT v.*, sc.name as sport_name, 
+           u.first_name as vendor_name, u.phone as vendor_phone,
+           vi.id as image_id, vi.image_url, vi.is_primary
+    FROM venues v
+    JOIN sports_categories sc ON v.sport_category_id = sc.id
+    JOIN users u ON v.vendor_user_id = u.id
+    LEFT JOIN venue_images vi ON v.id = vi.venue_id AND vi.is_primary = true
+    WHERE v.approval_status = 'APPROVED'
+`;
     
     const params = [];
     
@@ -130,7 +86,33 @@ router.get('/', (req, res) => {
     
     pool.query(sql, params, (err, data) => {
         if (err) return res.status(500).send(result.createResult(err.message));
-        res.send(result.createResult(null, data));
+        
+        const venues = [];
+        const venueMap = {};
+        
+        data.forEach(row => {
+            if (!venueMap[row.id]) {
+                venueMap[row.id] = {
+                    ...row,
+                    images: []
+                };
+                
+                delete venueMap[row.id].image_id;
+                delete venueMap[row.id].is_primary;
+                venues.push(venueMap[row.id]);
+            }
+            
+            
+            if (row.image_id && row.image_url) {
+                venueMap[row.id].images.push({
+                    id: row.image_id,
+                    image_url: row.image_url,
+                    is_primary: row.is_primary
+                });
+            }
+        });
+        
+        res.send(result.createResult(null, venues));
     });
 });
 
@@ -236,11 +218,11 @@ router.post('/:id/reviews', verifyToken, (req, res) => {
     });
 });
 
-// vendor rotutes
+// ==================== VENDOR ROUTES ====================
 
 // ADD NEW VENUE (Vendor)
 router.post('/', verifyToken, (req, res) => {
-    const { sport_category_id, name, city, address, description, price_per_hour, amenities } = req.body;
+    const { sport_category_id, name, city, address, description, price_per_hour, amenities, image } = req.body;
     
     if (req.user.role !== 'VENDOR') {
         return res.status(403).send(result.createResult("Only vendors can add venues"));
@@ -259,27 +241,49 @@ router.post('/', verifyToken, (req, res) => {
     
     pool.query(sql, [req.user.id, sport_category_id, name, city, address, description, price_per_hour, amenitiesJson], (err, data) => {
         if (err) return res.status(500).send(result.createResult(err.message));
-        res.status(201).send(result.createResult(null, { 
-            message: 'Venue submitted for approval', 
-            id: data.insertId 
-        }));
+        
+        const venueId = data.insertId;
+        
+        // If image is provided, save it as well
+        if (image) {
+            const imageSql = 'INSERT INTO venue_images (venue_id, image_url, is_primary) VALUES (?, ?, true)';
+            pool.query(imageSql, [venueId, image], (imgErr, imgData) => {
+                if (imgErr) {
+                    console.error('Error saving venue image:', imgErr);
+                    // Still return success even if image fails to save
+                }
+                res.status(201).send(result.createResult(null, { 
+                    message: 'Venue submitted for approval', 
+                    id: venueId 
+                }));
+            });
+        } else {
+            res.status(201).send(result.createResult(null, { 
+                message: 'Venue submitted for approval', 
+                id: venueId 
+            }));
+        }
     });
 });
 
-// ADD VENUE IMAGES (Vendor)
-router.post('/:id/images', verifyToken, (req, res) => {
+
+// ADD VENUE IMAGES (Vendor) - File Upload with Multer
+router.post('/:id/images', verifyToken, upload.single('image'), (req, res) => {
     if (req.user.role !== 'VENDOR') {
         return res.status(403).send(result.createResult("Only vendors can add images"));
     }
     
-    const { image_url, is_primary } = req.body;
     const venueId = req.params.id;
     
-    if (!image_url) {
-        return res.status(400).send(result.createResult("image_url is required"));
+    if (!req.file) {
+        return res.status(400).send(result.createResult("Image file is required"));
     }
     
-    // Verify venue ownership
+ 
+    const image_url = `/uploads/venues/${req.file.filename}`;
+    const is_primary = req.body.is_primary ? 1 : 0;
+    
+
     const checkSql = 'SELECT id FROM venues WHERE id = ? AND vendor_user_id = ?';
     
     pool.query(checkSql, [venueId, req.user.id], (err, venueData) => {
@@ -290,13 +294,25 @@ router.post('/:id/images', verifyToken, (req, res) => {
         
         const sql = 'INSERT INTO venue_images (venue_id, image_url, is_primary) VALUES (?, ?, ?)';
         
-        pool.query(sql, [venueId, image_url, is_primary ? 1 : 0], (err, data) => {
+        pool.query(sql, [venueId, image_url, is_primary], (err, data) => {
             if (err) return res.status(500).send(result.createResult(err.message));
             res.status(201).send(result.createResult(null, { 
                 message: 'Image added successfully',
-                id: data.insertId
+                id: data.insertId,
+                image_url: image_url
             }));
         });
+    });
+});
+
+// GET VENUE IMAGES (Public)
+router.get('/:id/images', (req, res) => {
+    const venueId = req.params.id;
+    const sql = 'SELECT id, image_url, is_primary FROM venue_images WHERE venue_id = ? ORDER BY is_primary DESC, created_at ASC';
+    
+    pool.query(sql, [venueId], (err, images) => {
+        if (err) return res.status(500).send(result.createResult(err.message));
+        res.status(200).send(result.createResult(null, images));
     });
 });
 
@@ -367,6 +383,49 @@ router.delete('/:id', verifyToken, (req, res) => {
     });
 });
 
+// GET VENDOR'S ALL VENUES
+router.get('/vendor/venues', verifyToken, (req, res) => {
+    const sql = `
+        SELECT v.*, vi.id as image_id, vi.image_url, vi.is_primary
+        FROM venues v
+        LEFT JOIN venue_images vi ON v.id = vi.venue_id AND vi.is_primary = true
+        WHERE v.vendor_user_id = ?
+        ORDER BY v.created_at DESC
+    `;
+    
+    pool.query(sql, [req.user.id], (err, data) => {
+        if (err) return res.status(500).send(result.createResult(err.message));
+        
+        // Transform data to group images back into array format
+        const venues = [];
+        const venueMap = {};
+        
+        data.forEach(row => {
+            if (!venueMap[row.id]) {
+                venueMap[row.id] = {
+                    ...row,
+                    images: []
+                };
+                // Remove image-specific fields from root level
+                delete venueMap[row.id].image_id;
+                delete venueMap[row.id].is_primary;
+                venues.push(venueMap[row.id]);
+            }
+            
+            // Add image if it exists
+            if (row.image_id && row.image_url) {
+                venueMap[row.id].images.push({
+                    id: row.image_id,
+                    image_url: row.image_url,
+                    is_primary: row.is_primary
+                });
+            }
+        });
+        
+        res.send(result.createResult(null, venues));
+    });
+});
+
 //  ADMIN ROUTES (AUTHENTICATED)
 
 // ADD SPORTS CATEGORY (Admin)
@@ -405,17 +464,46 @@ router.get('/admin/pending', verifyToken, (req, res) => {
     
     const sql = `
         SELECT v.*, sc.name as sport_name, 
-               u.first_name as vendor_name, u.email as vendor_email, u.phone as vendor_phone
+               u.first_name as vendor_name, u.email as vendor_email, u.phone as vendor_phone,
+               vi.id as image_id, vi.image_url, vi.is_primary
         FROM venues v
         JOIN sports_categories sc ON v.sport_category_id = sc.id
         JOIN users u ON v.vendor_user_id = u.id
+        LEFT JOIN venue_images vi ON v.id = vi.venue_id AND vi.is_primary = true
         WHERE v.approval_status = 'PENDING'
         ORDER BY v.created_at ASC
     `;
     
     pool.query(sql, (err, data) => {
         if (err) return res.status(500).send(result.createResult(err.message));
-        res.send(result.createResult(null, data));
+        
+        // Transform data to group images back into array format
+        const venues = [];
+        const venueMap = {};
+        
+        data.forEach(row => {
+            if (!venueMap[row.id]) {
+                venueMap[row.id] = {
+                    ...row,
+                    images: []
+                };
+                // Remove image-specific fields from root level
+                delete venueMap[row.id].image_id;
+                delete venueMap[row.id].is_primary;
+                venues.push(venueMap[row.id]);
+            }
+            
+            // Add image if it exists
+            if (row.image_id && row.image_url) {
+                venueMap[row.id].images.push({
+                    id: row.image_id,
+                    image_url: row.image_url,
+                    is_primary: row.is_primary
+                });
+            }
+        });
+        
+        res.send(result.createResult(null, venues));
     });
 });
 

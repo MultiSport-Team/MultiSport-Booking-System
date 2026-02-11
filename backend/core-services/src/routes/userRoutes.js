@@ -11,7 +11,6 @@ const SaltRounds = 10;
 
 // REGISTER
 router.post('/register', (req, res) => {
-    console.log("Register Body:", req.body);
     const { first_name, last_name, email, phone, password, role } = req.body;
 
     if (!password || !email || !first_name) {
